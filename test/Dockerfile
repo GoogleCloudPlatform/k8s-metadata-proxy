@@ -13,6 +13,7 @@
 # limitations under the License.
 
 FROM busybox
+LABEL maintainer "ihmccreery@google.com"
 
 COPY check_metadata_concealment /
 

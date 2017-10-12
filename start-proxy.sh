@@ -27,5 +27,5 @@ iptables -t filter -I KUBE-METADATA-SERVER -j ACCEPT
 # Clean up the iptables rule if we're exiting gracefully.
 trap _term TERM
 
-# Run nginx in the foreground.
-nginx -g 'daemon off;'
+# Run proxy in the foreground.
+./metadata_proxy

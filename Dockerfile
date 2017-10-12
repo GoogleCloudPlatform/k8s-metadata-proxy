@@ -12,14 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM gcr.io/google-containers/debian-base-amd64:0.1
+# TODO(ihmccreery) Change this to busybox, etc. once iptables stuff is removed.
+FROM gcr.io/google_containers/debian-base-amd64:0.1
 LABEL maintainer "ihmccreery@google.com"
 
 ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y \
-  apt-utils && clean-install iptables nginx
+  apt-utils && clean-install iptables
 
 # Place our wrapper script into the image.
 COPY start-proxy.sh /
+COPY metadata_proxy /
 
 ENTRYPOINT ["/start-proxy.sh"]
