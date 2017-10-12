@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # TODO(ihmccreery) Change this to busybox, etc. once iptables stuff is removed.
-FROM gcr.io/google_containers/debian-base-amd64:0.1
+FROM gcr.io/google_containers/debian-base-amd64:0.3
 LABEL maintainer "ihmccreery@google.com"
 
 ARG DEBIAN_FRONTEND=noninteractive
