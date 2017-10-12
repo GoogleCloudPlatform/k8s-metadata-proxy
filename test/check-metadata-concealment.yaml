@@ -9,6 +9,6 @@ spec:
     spec:
       containers:
       - name: check-metadata-concealment
-        image: gcr.io/google_containers/check-metadata-concealment:v0.0.1
+        image: gcr.io/google_containers/check-metadata-concealment:v0.0.2
         imagePullPolicy: Always
       restartPolicy: Never
