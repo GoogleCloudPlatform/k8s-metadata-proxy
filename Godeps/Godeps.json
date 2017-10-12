@@ -1,0 +1,6 @@
+{
+	"ImportPath": "github.com/GoogleCloudPlatform/k8s-metadata-proxy",
+	"GoVersion": "go1.9",
+	"GodepVersion": "v79",
+	"Deps": []
+}

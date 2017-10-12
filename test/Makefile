@@ -14,25 +14,23 @@
 
 all: build
 
-FLAGS =
 ENVVAR = GOOS=linux GOARCH=amd64 CGO_ENABLED=0
 REGISTRY = gcr.io/google_containers
 TAG = v0.0.1
 
 deps:
 	go get github.com/tools/godep
+	godep save
 
 build: clean deps
-	$(ENVVAR) godep go build ./...
+	$(ENVVAR) godep go test ./...
 	$(ENVVAR) godep go build -o check_metadata_concealment
 
 container: build
-	docker build --pull -t ${REGISTRY}/check-metadata-concealment:$(TAG) .
+	docker build --pull --no-cache -t ${REGISTRY}/check-metadata-concealment:$(TAG) .
 
 push: container
 	gcloud docker -- push ${REGISTRY}/check-metadata-concealment:$(TAG)
 
 clean:
 	rm -f check_metadata_concealment
-
-.PHONY: all deps build container push clean

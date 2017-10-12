@@ -27,22 +27,24 @@ import (
 
 var (
 	successEndpoints = []string{
-		// Root, no trailing slash.
+		// Discovery
 		"http://169.254.169.254",
 		"http://metadata.google.internal",
 		"http://169.254.169.254/",
 		"http://metadata.google.internal/",
-		// The GCE metadata server serves 301s for directory locations
-		// without trailing slashes.
+		"http://metadata.google.internal/0.1",
+		"http://metadata.google.internal/0.1/",
 		"http://metadata.google.internal/0.1/meta-data",
-		"http://metadata.google.internal/computeMetadata/v1",
+		"http://metadata.google.internal/computeMetadata",
 		"http://metadata.google.internal/computeMetadata/v1beta1",
+		"http://metadata.google.internal/computeMetadata/v1",
 		// Allowed API versions.
 		"http://metadata.google.internal/0.1/meta-data/",
-		"http://metadata.google.internal/computeMetadata/v1/",
 		"http://metadata.google.internal/computeMetadata/v1beta1/",
+		"http://metadata.google.internal/computeMetadata/v1/",
 		// Service account token endpoints.
 		"http://metadata.google.internal/0.1/meta-data/service-accounts/default/acquire",
+		"http://metadata.google.internal/computeMetadata/v1beta1/instance/service-accounts/default/token",
 		"http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token",
 		// Params that contain 'recursive' as substring.
 		"http://metadata.google.internal/computeMetadata/v1/instance/?nonrecursive=true",
@@ -56,14 +58,17 @@ var (
 	failureEndpoints = []string{
 		// Other API versions.
 		"http://metadata.google.internal/0.2/",
-		"http://metadata.google.internal/computeMetadata/v2",
+		"http://metadata.google.internal/computeMetadata/v2/",
 		// kube-env.
+		"http://metadata.google.internal/computeMetadata/0.1/attributes/kube-env",
+		"http://metadata.google.internal/computeMetadata/v1beta1/instance/attributes/kube-env",
 		"http://metadata.google.internal/computeMetadata/v1/instance/attributes/kube-env",
 		// VM identity.
+		"http://metadata.google.internal/computeMetadata/0.1/service-accounts/default/identity",
+		"http://metadata.google.internal/computeMetadata/v1beta1/instance/service-accounts/default/identity",
 		"http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/identity",
-		// Recursive, case-insensitive.
+		// Recursive.
 		"http://metadata.google.internal/computeMetadata/v1/instance/?recursive=true",
-		"http://metadata.google.internal/computeMetadata/v1/instance/?RECURSIVE=ON",
 		"http://metadata.google.internal/computeMetadata/v1/instance/?something=other&recursive=true",
 		"http://metadata.google.internal/computeMetadata/v1/instance/?recursive=true&something=other",
 	}
@@ -71,36 +76,50 @@ var (
 
 func main() {
 	success := 0
+	h := map[string][]string{
+		"Metadata-Flavor": {"Google"},
+	}
 	for _, e := range successEndpoints {
-		if err := checkURL(e, 200, ""); err != nil {
+		if err := checkURL(e, h, 200, ""); err != nil {
 			log.Printf("Wrong response for %v: %v", e, err)
 			success = 1
 		}
 	}
 	for _, e := range noKubeEnvEndpoints {
-		if err := checkURL(e, 200, "kube-env"); err != nil {
+		if err := checkURL(e, h, 200, "kube-env"); err != nil {
 			log.Printf("Wrong response for %v: %v", e, err)
 			success = 1
 		}
 	}
 	for _, e := range failureEndpoints {
-		if err := checkURL(e, 403, ""); err != nil {
+		if err := checkURL(e, h, 403, ""); err != nil {
 			log.Printf("Wrong response for %v: %v", e, err)
+			success = 1
+		}
+	}
+
+	xForwardedForHeader := map[string][]string{
+		"X-Forwarded-For": {"Somebody-somewhere"},
+	}
+	// Check that success endpoints fail if X-Forwarded-For is present.
+	for _, e := range successEndpoints {
+		if err := checkURL(e, xForwardedForHeader, 403, ""); err != nil {
+			log.Printf("Wrong response for %v with X-Forwarded-For: %v", e, err)
 			success = 1
 		}
 	}
 	os.Exit(success)
 }
 
-// Checks that a URL returns the right code, and if s is non-empty,
-// checks that the body doesn't contain s.
-func checkURL(url string, expectedStatus int, s string) error {
+// Checks that a URL with the given headers returns the right code, and if s is
+// non-empty, checks that the body doesn't contain s.
+func checkURL(url string, header http.Header, expectedStatus int, s string) error {
 	client := &http.Client{}
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return err
 	}
-	req.Header.Add("Metadata-Flavor", "Google")
+	req.Header = header
 	resp, err := client.Do(req)
 	if err != nil {
 		return err
