@@ -16,7 +16,7 @@ all: build
 
 ENVVAR = GOOS=linux GOARCH=amd64 CGO_ENABLED=0
 REGISTRY = gcr.io/google_containers
-TAG = v0.1.4
+TAG = v0.1.5
 
 deps:
 	go get github.com/tools/godep
