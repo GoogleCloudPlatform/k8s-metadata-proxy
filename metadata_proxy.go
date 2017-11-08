@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"log"
 	"net/http"
 	"net/http/httputil"
@@ -43,17 +44,20 @@ var (
 )
 
 var (
+	addr                = flag.String("addr", "127.0.0.1:988", "Address at which to listen and proxy")
+	metricsAddr         = flag.String("metrics-addr", "127.0.0.1:989", "Address at which to publish metrics")
 	filterResultBlocked = "filter_result_blocked"
 	filterResultProxied = "filter_result_proxied"
 )
 
 func main() {
-	// TODO(ihmccreery) Make these ports configurable.
+	flag.Parse()
+
 	go func() {
-		err := http.ListenAndServe("127.0.0.1:989", promhttp.Handler())
+		err := http.ListenAndServe(*metricsAddr, promhttp.Handler())
 		log.Fatalf("Failed to start metrics: %v", err)
 	}()
-	log.Fatal(http.ListenAndServe("127.0.0.1:988", newMetadataHandler()))
+	log.Fatal(http.ListenAndServe(*addr, newMetadataHandler()))
 }
 
 // xForwardedForStripper is identical to http.DefaultTransport except that it
