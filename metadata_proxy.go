@@ -102,6 +102,7 @@ func newMetadataHandler() *metadataHandler {
 		log.Fatal(err)
 	}
 	proxy := httputil.NewSingleHostReverseProxy(u)
+	proxy.BufferPool = newBufferPool()
 
 	proxy.Transport = xForwardedForStripper{}
 
@@ -174,4 +175,23 @@ func (h *metadataHandler) ServeHTTP(hrw http.ResponseWriter, req *http.Request) 
 	// it.
 	rw.filterResult = filterResultBlocked
 	http.Error(rw, "This metadata API is not allowed by the metadata proxy.", http.StatusForbidden)
+}
+
+type bufferPool chan []byte
+
+func newBufferPool() bufferPool {
+	const poolSize = 100
+	bp := make(chan []byte, poolSize)
+	for i := 0; i < poolSize; i++ {
+		bp <- make([]byte, 32*1024)
+	}
+	return bp
+}
+
+func (bp bufferPool) Get() []byte {
+	return <-bp
+}
+
+func (bp bufferPool) Put(b []byte) {
+	bp <- b
 }
