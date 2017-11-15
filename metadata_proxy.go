@@ -2,13 +2,18 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
+
+	"golang.org/x/net/netutil"
 
 	"github.com/GoogleCloudPlatform/k8s-metadata-proxy/metrics"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -43,6 +48,8 @@ var (
 	}
 )
 
+const servingGoroutines = 100
+
 var (
 	addr                = flag.String("addr", "127.0.0.1:988", "Address at which to listen and proxy")
 	metricsAddr         = flag.String("metrics-addr", "127.0.0.1:989", "Address at which to publish metrics")
@@ -57,7 +64,24 @@ func main() {
 		err := http.ListenAndServe(*metricsAddr, promhttp.Handler())
 		log.Fatalf("Failed to start metrics: %v", err)
 	}()
-	log.Fatal(http.ListenAndServe(*addr, newMetadataHandler()))
+	log.Fatal(ListenAndServe(*addr, newMetadataHandler()))
+}
+
+func ListenAndServe(addr string, handler http.Handler) error {
+	s := &http.Server{
+		Addr:           addr,
+		Handler:        handler,
+		ReadTimeout:    60 * time.Second,
+		WriteTimeout:   60 * time.Second,
+		MaxHeaderBytes: 1 << 20,
+	}
+	ln, err := net.Listen("tcp", addr)
+	if err != nil {
+		return fmt.Errorf("failed to listen: %v", err)
+	}
+	ln = tcpKeepAliveListener{ln.(*net.TCPListener)}
+	ln = netutil.LimitListener(ln, servingGoroutines)
+	return s.Serve(ln)
 }
 
 // xForwardedForStripper is identical to http.DefaultTransport except that it
@@ -180,9 +204,8 @@ func (h *metadataHandler) ServeHTTP(hrw http.ResponseWriter, req *http.Request) 
 type bufferPool chan []byte
 
 func newBufferPool() bufferPool {
-	const poolSize = 100
-	bp := make(chan []byte, poolSize)
-	for i := 0; i < poolSize; i++ {
+	bp := make(chan []byte, servingGoroutines)
+	for i := 0; i < servingGoroutines; i++ {
 		bp <- make([]byte, 32*1024)
 	}
 	return bp
@@ -194,4 +217,24 @@ func (bp bufferPool) Get() []byte {
 
 func (bp bufferPool) Put(b []byte) {
 	bp <- b
+}
+
+// copied from net/http
+
+// tcpKeepAliveListener sets TCP keep-alive timeouts on accepted
+// connections. It's used by ListenAndServe and ListenAndServeTLS so
+// dead TCP connections (e.g. closing laptop mid-download) eventually
+// go away.
+type tcpKeepAliveListener struct {
+	*net.TCPListener
+}
+
+func (ln tcpKeepAliveListener) Accept() (c net.Conn, err error) {
+	tc, err := ln.AcceptTCP()
+	if err != nil {
+		return
+	}
+	tc.SetKeepAlive(true)
+	tc.SetKeepAlivePeriod(3 * time.Minute)
+	return tc, nil
 }
