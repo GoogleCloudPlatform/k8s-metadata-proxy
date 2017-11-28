@@ -24,6 +24,9 @@ var (
 		regexp.MustCompile("/0.1/meta-data/service-accounts/.+/identity"),
 		regexp.MustCompile("/computeMetadata/v1beta1/instance/service-accounts/.+/identity"),
 		regexp.MustCompile("/computeMetadata/v1/instance/service-accounts/.+/identity"),
+		regexp.MustCompile("/0.1/meta-data/service-accounts/.+/token"),
+		regexp.MustCompile("/computeMetadata/v1beta1/instance/service-accounts/.+/token"),
+		regexp.MustCompile("/computeMetadata/v1/instance/service-accounts/.+/token"),		
 	}
 	knownPrefixes = []string{
 		"/0.1/meta-data/",
