@@ -17,6 +17,6 @@ FROM gcr.io/google_containers/debian-base-amd64:0.3
 LABEL maintainer "ihmccreery@google.com"
 
 # Place our wrapper script into the image.
-COPY metadata_proxy /
+COPY proxy /
 
-ENTRYPOINT ["./metadata_proxy"]
+ENTRYPOINT ["./proxy"]
