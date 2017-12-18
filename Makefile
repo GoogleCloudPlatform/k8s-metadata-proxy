@@ -24,7 +24,7 @@ deps:
 
 build: clean deps
 	$(ENVVAR) godep go test ./...
-	$(ENVVAR) godep go build -o metadata_proxy
+	$(ENVVAR) godep go build -o proxy
 
 container: build
 	docker build --pull --no-cache -t ${REGISTRY}/metadata-proxy:$(TAG) .
@@ -33,4 +33,4 @@ push: container
 	gcloud docker -- push ${REGISTRY}/metadata-proxy:$(TAG)
 
 clean:
-	rm -f metadata_proxy
+	rm -f proxy

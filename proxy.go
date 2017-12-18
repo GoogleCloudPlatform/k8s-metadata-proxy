@@ -8,44 +8,14 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
-	"regexp"
 	"strconv"
-	"strings"
 	"time"
 
 	"golang.org/x/net/netutil"
 
+	"github.com/GoogleCloudPlatform/k8s-metadata-proxy/metadata"
 	"github.com/GoogleCloudPlatform/k8s-metadata-proxy/metrics"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-)
-
-var (
-	concealedEndpoints = []string{
-		"/0.1/meta-data/attributes/kube-env",
-		"/computeMetadata/v1beta1/instance/attributes/kube-env",
-		"/computeMetadata/v1/instance/attributes/kube-env",
-	}
-	concealedPatterns = []*regexp.Regexp{
-		regexp.MustCompile("/0.1/meta-data/service-accounts/.+/identity"),
-		regexp.MustCompile("/computeMetadata/v1beta1/instance/service-accounts/.+/identity"),
-		regexp.MustCompile("/computeMetadata/v1/instance/service-accounts/.+/identity"),
-	}
-	knownPrefixes = []string{
-		"/0.1/meta-data/",
-		"/computeMetadata/v1beta1/",
-		"/computeMetadata/v1/",
-	}
-	discoveryEndpoints = []string{
-		"",
-		"/",
-		"/0.1",
-		"/0.1/",
-		"/0.1/meta-data",
-		"/computeMetadata",
-		"/computeMetadata/",
-		"/computeMetadata/v1beta1",
-		"/computeMetadata/v1",
-	}
 )
 
 const servingGoroutines = 100
@@ -145,60 +115,13 @@ func (h *metadataHandler) ServeHTTP(hrw http.ResponseWriter, req *http.Request) 
 	// Wrap http.ResponseWriter to get collect metrics.
 	rw := newResponseWriter(hrw)
 
-	// Since we're stripping the X-Forwarded-For header that's added by
-	// httputil.ReverseProxy.ServeHTTP, check for the header here and
-	// refuse to serve if it's present.
-	if _, ok := req.Header["X-Forwarded-For"]; ok {
+	if err := metadata.Filter(req); err != nil {
 		rw.filterResult = filterResultBlocked
-		http.Error(rw, "Calls with X-Forwarded-For header are not allowed by the metadata proxy.", http.StatusForbidden)
+		http.Error(rw, err.Error(), http.StatusForbidden)
+	} else {
+		rw.filterResult = filterResultProxied
+		h.proxy.ServeHTTP(rw, req)
 	}
-	// Check that the request isn't a recursive one.
-	if req.URL.Query().Get("recursive") != "" {
-		rw.filterResult = filterResultBlocked
-		http.Error(rw, "?recursive calls are not allowed by the metadata proxy.", http.StatusForbidden)
-		return
-	}
-
-	// Conceal kube-env and vm identity endpoints for known API versions.
-	// Don't block unknown API versions, since we don't know if they have
-	// the same paths.
-	for _, e := range concealedEndpoints {
-		if req.URL.Path == e {
-			rw.filterResult = filterResultBlocked
-			http.Error(rw, "This metadata endpoint is concealed.", http.StatusForbidden)
-			return
-		}
-	}
-	for _, p := range concealedPatterns {
-		if p.MatchString(req.URL.Path) {
-			rw.filterResult = filterResultBlocked
-			http.Error(rw, "This metadata endpoint is concealed.", http.StatusForbidden)
-			return
-		}
-	}
-
-	// Allow proxy for known API versions, defined by prefixes and known
-	// discovery endpoints.  Unknown API versions aren't allowed, since we
-	// don't know what paths they have.
-	for _, p := range knownPrefixes {
-		if strings.HasPrefix(req.URL.Path, p) {
-			rw.filterResult = filterResultProxied
-			h.proxy.ServeHTTP(rw, req)
-			return
-		}
-	}
-	for _, e := range discoveryEndpoints {
-		if req.URL.Path == e {
-			rw.filterResult = filterResultProxied
-			h.proxy.ServeHTTP(rw, req)
-			return
-		}
-	}
-
-	// If none of the above checks match, this is an unknown API, so block
-	// it.
-	rw.filterResult = filterResultBlocked
-	http.Error(rw, "This metadata API is not allowed by the metadata proxy.", http.StatusForbidden)
 }
 
 type bufferPool chan []byte
