@@ -12,8 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# TODO(ihmccreery) Change this to a smaller image?
-FROM gcr.io/google_containers/debian-base-amd64:0.3
+FROM scratch
 LABEL maintainer "ihmccreery@google.com"
 
 # Place our wrapper script into the image.
