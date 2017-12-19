@@ -60,17 +60,22 @@ var (
 		"http://metadata.google.internal/0.2/",
 		"http://metadata.google.internal/computeMetadata/v2/",
 		// kube-env.
-		"http://metadata.google.internal/computeMetadata/0.1/attributes/kube-env",
+		"http://metadata.google.internal/0.1/meta-data/attributes/kube-env",
 		"http://metadata.google.internal/computeMetadata/v1beta1/instance/attributes/kube-env",
 		"http://metadata.google.internal/computeMetadata/v1/instance/attributes/kube-env",
 		// VM identity.
-		"http://metadata.google.internal/computeMetadata/0.1/service-accounts/default/identity",
+		"http://metadata.google.internal/0.1/meta-data/service-accounts/default/identity",
 		"http://metadata.google.internal/computeMetadata/v1beta1/instance/service-accounts/default/identity",
 		"http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/identity",
 		// Recursive.
 		"http://metadata.google.internal/computeMetadata/v1/instance/?recursive=true",
 		"http://metadata.google.internal/computeMetadata/v1/instance/?something=other&recursive=true",
 		"http://metadata.google.internal/computeMetadata/v1/instance/?recursive=true&something=other",
+		// Other.
+		"http://metadata.google.internal/computeMetadata/v1/instance/attributes//kube-env",
+		"http://metadata.google.internal/computeMetadata/v1/instance/attributes/../attributes/kube-env",
+		"http://metadata.google.internal/computeMetadata/v1/instance/service-accounts//default/identity",
+		"http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/../service-accounts/default/identity",
 	}
 )
 
