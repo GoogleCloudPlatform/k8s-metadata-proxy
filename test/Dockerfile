@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM busybox
+FROM scratch
 LABEL maintainer "ihmccreery@google.com"
 
 COPY check_metadata_concealment /
