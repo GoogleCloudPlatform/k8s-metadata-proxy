@@ -46,6 +46,10 @@ func Filter(req *http.Request) error {
 	if req.URL.Query().Get("recursive") != "" {
 		return errors.New("?recursive calls are not allowed by the metadata proxy.")
 	}
+	// Check that the request doesn't have any opaque parts.
+	if req.URL.Opaque != "" {
+		return errors.New("Metadata proxy could not safely parse request.")
+	}
 
 	cleanedPath := strings.ToLower(path.Clean(req.URL.Path))
 

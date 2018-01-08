@@ -15,6 +15,7 @@ var (
 	concealedErr     = errors.New("This metadata endpoint is concealed.")
 	recursiveErr     = errors.New("?recursive calls are not allowed by the metadata proxy.")
 	xffErr           = errors.New("Calls with X-Forwarded-For header are not allowed by the metadata proxy.")
+	parseErr         = errors.New("Metadata proxy could not safely parse request.")
 )
 
 func TestFilterURL(t *testing.T) {
@@ -61,6 +62,7 @@ func TestFilterURL(t *testing.T) {
 		{"/computeMetadata/v1/instance/attributes//kube-env", concealedErr},
 		{"/computeMetadata/v1/instance/attributes/../attributes/kube-env", concealedErr},
 		{"/COMPUTEMETADATA/V1/INSTANCE/ATTRIBUTES/KUBE-ENV", concealedErr},
+		{"opaquescheme:computeMetadata/v1/instance/attributes/kube-env", parseErr},
 	}
 
 	for _, tc := range tests {
