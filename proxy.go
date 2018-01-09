@@ -115,10 +115,11 @@ func (h *metadataHandler) ServeHTTP(hrw http.ResponseWriter, req *http.Request) 
 	// Wrap http.ResponseWriter to get collect metrics.
 	rw := newResponseWriter(hrw)
 
-	if err := metadata.Filter(req); err != nil {
+	if cleanedPath, err := metadata.Filter(req); err != nil {
 		rw.filterResult = filterResultBlocked
 		http.Error(rw, err.Error(), http.StatusForbidden)
 	} else {
+		req.URL.Path = cleanedPath
 		rw.filterResult = filterResultProxied
 		h.proxy.ServeHTTP(rw, req)
 	}
