@@ -35,20 +35,22 @@ var (
 	}
 )
 
-func Filter(req *http.Request) error {
+// Filter returns a cleaned path if the request ought to be allowed, or an
+// error if not.
+func Filter(req *http.Request) (string, error) {
 	// Since we're stripping the X-Forwarded-For header that's added by
 	// httputil.ReverseProxy.ServeHTTP, check for the header here and
 	// refuse to serve if it's present.
 	if _, ok := req.Header["X-Forwarded-For"]; ok {
-		return errors.New("Calls with X-Forwarded-For header are not allowed by the metadata proxy.")
+		return "", errors.New("Calls with X-Forwarded-For header are not allowed by the metadata proxy.")
 	}
 	// Check that the request isn't a recursive one.
 	if req.URL.Query().Get("recursive") != "" {
-		return errors.New("?recursive calls are not allowed by the metadata proxy.")
+		return "", errors.New("?recursive calls are not allowed by the metadata proxy.")
 	}
 	// Check that the request doesn't have any opaque parts.
 	if req.URL.Opaque != "" {
-		return errors.New("Metadata proxy could not safely parse request.")
+		return "", errors.New("Metadata proxy could not safely parse request.")
 	}
 
 	cleanedPath := strings.ToLower(path.Clean(req.URL.Path))
@@ -58,19 +60,19 @@ func Filter(req *http.Request) error {
 	// the same paths.
 	for _, e := range concealedEndpoints {
 		if cleanedPath == e {
-			return errors.New("This metadata endpoint is concealed.")
+			return "", errors.New("This metadata endpoint is concealed.")
 		}
 	}
 	for _, p := range concealedPatterns {
 		if p.MatchString(cleanedPath) {
-			return errors.New("This metadata endpoint is concealed.")
+			return "", errors.New("This metadata endpoint is concealed.")
 		}
 	}
 
 	// Allow known discovery endpoints.
 	for _, e := range discoveryEndpoints {
 		if cleanedPath == e {
-			return nil
+			return cleanedPath, nil
 		}
 	}
 	// Allow proxy for known API versions, defined by prefixes and known
@@ -78,11 +80,11 @@ func Filter(req *http.Request) error {
 	// don't know what paths they have.
 	for _, p := range knownPrefixes {
 		if strings.HasPrefix(cleanedPath, p) {
-			return nil
+			return cleanedPath, nil
 		}
 	}
 
 	// If none of the above checks match, this is an unknown API, so block
 	// it.
-	return errors.New("This metadata API is not allowed by the metadata proxy.")
+	return "", errors.New("This metadata API is not allowed by the metadata proxy.")
 }

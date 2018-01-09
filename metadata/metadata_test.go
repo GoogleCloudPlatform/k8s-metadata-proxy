@@ -73,7 +73,7 @@ func TestFilterURL(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Unexpected error creating request: %q", err)
 			}
-			err = metadata.Filter(req)
+			_, err = metadata.Filter(req)
 			if err == nil {
 				if tc.expectErr != nil {
 					t.Errorf("Got nil error, expected %q", tc.expectErr)
@@ -116,7 +116,7 @@ func TestFilterHeader(t *testing.T) {
 			for k, v := range tc.headers {
 				req.Header.Add(k, v)
 			}
-			err = metadata.Filter(req)
+			_, err = metadata.Filter(req)
 			if err == nil {
 				if tc.expectErr != nil {
 					t.Errorf("Got nil error, expected %q", tc.expectErr)
