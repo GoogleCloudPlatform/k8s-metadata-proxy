@@ -11,27 +11,29 @@ import (
 var (
 	concealedEndpoints = []string{
 		"/0.1/meta-data/attributes/kube-env",
-		"/computemetadata/v1beta1/instance/attributes/kube-env",
-		"/computemetadata/v1/instance/attributes/kube-env",
+		"/computeMetadata/v1beta1/instance/attributes/kube-env",
+		"/computeMetadata/v1/instance/attributes/kube-env",
 	}
 	concealedPatterns = []*regexp.Regexp{
 		regexp.MustCompile("/0.1/meta-data/service-accounts/.+/identity"),
-		regexp.MustCompile("/computemetadata/v1beta1/instance/service-accounts/.+/identity"),
-		regexp.MustCompile("/computemetadata/v1/instance/service-accounts/.+/identity"),
+		regexp.MustCompile("/computeMetadata/v1beta1/instance/service-accounts/.+/identity"),
+		regexp.MustCompile("/computeMetadata/v1/instance/service-accounts/.+/identity"),
 	}
 	discoveryEndpoints = []string{
-		".", // path.Clean result for ""
+		"",
 		"/",
 		"/0.1",
+		"/0.1/",
 		"/0.1/meta-data",
-		"/computemetadata",
-		"/computemetadata/v1beta1",
-		"/computemetadata/v1",
+		"/computeMetadata",
+		"/computeMetadata/",
+		"/computeMetadata/v1beta1",
+		"/computeMetadata/v1",
 	}
 	knownPrefixes = []string{
 		"/0.1/meta-data/",
-		"/computemetadata/v1beta1/",
-		"/computemetadata/v1/",
+		"/computeMetadata/v1beta1/",
+		"/computeMetadata/v1/",
 	}
 )
 
@@ -53,7 +55,18 @@ func Filter(req *http.Request) (string, error) {
 		return "", errors.New("Metadata proxy could not safely parse request.")
 	}
 
-	cleanedPath := strings.ToLower(path.Clean(req.URL.Path))
+	cleanedPath := path.Clean(req.URL.Path)
+	// path.Clean("") == ".", so set it back to "".
+	if req.URL.Path == "" {
+		cleanedPath = ""
+	}
+	// path.Clean("/") == "/", so set it to "" and append "/" below.
+	if req.URL.Path == "/" {
+		cleanedPath = ""
+	}
+	if strings.HasSuffix(req.URL.Path, "/") && cleanedPath != "/" {
+		cleanedPath += "/"
+	}
 
 	// Conceal kube-env and vm identity endpoints for known API versions.
 	// Don't block unknown API versions, since we don't know if they have

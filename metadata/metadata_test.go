@@ -20,49 +20,48 @@ var (
 
 func TestFilterURL(t *testing.T) {
 	tests := []struct {
-		url       string
-		expectErr error
+		url           string
+		expectErr     error
+		expectCleaned string
 	}{
 		// Discovery & base.
-		{"", nil},
-		{"/", nil},
-		{"/0.1", nil},
-		{"/0.1/", nil},
-		{"/0.1/meta-data", nil},
-		{"/0.1/meta-data/", nil},
-		{"/computeMetadata/v1beta1", nil},
-		{"/computeMetadata/v1beta1/", nil},
-		{"/computeMetadata/v1", nil},
-		{"/computeMetadata/v1/", nil},
+		{"", nil, ""},
+		{"/", nil, "/"},
+		{"/0.1", nil, "/0.1"},
+		{"/0.1/", nil, "/0.1/"},
+		{"/0.1/meta-data", nil, "/0.1/meta-data"},
+		{"/0.1/meta-data/", nil, "/0.1/meta-data/"},
+		{"/computeMetadata/v1beta1", nil, "/computeMetadata/v1beta1"},
+		{"/computeMetadata/v1beta1/", nil, "/computeMetadata/v1beta1/"},
+		{"/computeMetadata/v1", nil, "/computeMetadata/v1"},
+		{"/computeMetadata/v1/", nil, "/computeMetadata/v1/"},
 		// Service account token endpoints.
-		{"/computeMetadata/v1/instance/service-accounts/default/token", nil},
-		{"/computeMetadata/v1/instance/service-accounts/12345-compute@developer.gserviceaccount.com/token", nil},
+		{"/computeMetadata/v1/instance/service-accounts/default/token", nil, "/computeMetadata/v1/instance/service-accounts/default/token"},
+		{"/computeMetadata/v1/instance/service-accounts/12345-compute@developer.gserviceaccount.com/token", nil, "/computeMetadata/v1/instance/service-accounts/12345-compute@developer.gserviceaccount.com/token"},
 		// Params that contain 'recursive' as substring.
-		{"/computeMetadata/v1/instance/?nonrecursive=true", nil},
-		{"/computeMetadata/v1/instance/?something=other&nonrecursive=true", nil},
-		// Different case.
-		{"/COMPUTEMETADATA/V1/", nil},
+		{"/computeMetadata/v1/instance/?nonrecursive=true", nil, "/computeMetadata/v1/instance/"},
+		{"/computeMetadata/v1/instance/?something=other&nonrecursive=true", nil, "/computeMetadata/v1/instance/"},
 
 		// Other API versions.
-		{"/0.2/", apiNotAllowedErr},
-		{"/computeMetadata/v2/", apiNotAllowedErr},
+		{"/0.2/", apiNotAllowedErr, ""},
+		{"/computeMetadata/v2/", apiNotAllowedErr, ""},
+		{"/COMPUTEMETADATA/V1/", apiNotAllowedErr, ""},
 		// kube-env.
-		{"/0.1/meta-data/attributes/kube-env", concealedErr},
-		{"/computeMetadata/v1beta1/instance/attributes/kube-env", concealedErr},
-		{"/computeMetadata/v1/instance/attributes/kube-env", concealedErr},
+		{"/0.1/meta-data/attributes/kube-env", concealedErr, ""},
+		{"/computeMetadata/v1beta1/instance/attributes/kube-env", concealedErr, ""},
+		{"/computeMetadata/v1/instance/attributes/kube-env", concealedErr, ""},
 		// VM identity.
-		{"/0.1/meta-data/service-accounts/default/identity", concealedErr},
-		{"/computeMetadata/v1beta1/instance/service-accounts/default/identity", concealedErr},
-		{"/computeMetadata/v1/instance/service-accounts/default/identity", concealedErr},
+		{"/0.1/meta-data/service-accounts/default/identity", concealedErr, ""},
+		{"/computeMetadata/v1beta1/instance/service-accounts/default/identity", concealedErr, ""},
+		{"/computeMetadata/v1/instance/service-accounts/default/identity", concealedErr, ""},
 		// Recursive.
-		{"/computeMetadata/v1/instance/?recursive=true", recursiveErr},
-		{"/computeMetadata/v1/instance/?something=other&recursive=true", recursiveErr},
-		{"/computeMetadata/v1/instance/?recursive=true&something=other", recursiveErr},
+		{"/computeMetadata/v1/instance/?recursive=true", recursiveErr, ""},
+		{"/computeMetadata/v1/instance/?something=other&recursive=true", recursiveErr, ""},
+		{"/computeMetadata/v1/instance/?recursive=true&something=other", recursiveErr, ""},
 		// Other.
-		{"/computeMetadata/v1/instance/attributes//kube-env", concealedErr},
-		{"/computeMetadata/v1/instance/attributes/../attributes/kube-env", concealedErr},
-		{"/COMPUTEMETADATA/V1/INSTANCE/ATTRIBUTES/KUBE-ENV", concealedErr},
-		{"opaquescheme:computeMetadata/v1/instance/attributes/kube-env", parseErr},
+		{"/computeMetadata/v1/instance/attributes//kube-env", concealedErr, ""},
+		{"/computeMetadata/v1/instance/attributes/../attributes/kube-env", concealedErr, ""},
+		{"opaquescheme:computeMetadata/v1/instance/attributes/kube-env", parseErr, ""},
 	}
 
 	for _, tc := range tests {
@@ -73,7 +72,10 @@ func TestFilterURL(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Unexpected error creating request: %q", err)
 			}
-			_, err = metadata.Filter(req)
+			cleanedPath, err := metadata.Filter(req)
+			if cleanedPath != tc.expectCleaned {
+				t.Errorf("Got cleaned path %q, expected %q", cleanedPath, tc.expectCleaned)
+			}
 			if err == nil {
 				if tc.expectErr != nil {
 					t.Errorf("Got nil error, expected %q", tc.expectErr)
