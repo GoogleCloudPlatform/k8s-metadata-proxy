@@ -20,7 +20,6 @@ TAG = v0.1.9
 
 deps:
 	go get github.com/tools/godep
-	godep save
 
 build: clean deps
 	$(ENVVAR) godep go test ./...
