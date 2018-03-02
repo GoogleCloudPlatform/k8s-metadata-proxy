@@ -1,0 +1,31 @@
+timeout: 10800s
+
+substitutions:
+  { "_REGISTRY": "gcr.io/k8s-image-staging",
+    "_TAG": "v0.1.9" }
+
+steps:
+- name: gcr.io/cloud-builders/git
+  id: git-clone
+  entrypoint: bash
+  args:
+  - "-c"
+  - |
+    set -ex
+    mkdir -p /workspace/src/github.com/GoogleCloudPlatform
+    cd /workspace/src/github.com/GoogleCloudPlatform
+    git clone https://github.com/GoogleCloudPlatform/k8s-metadata-proxy
+
+- name: gcr.io/k8s-image-staging/godep
+  id: make-build
+  entrypoint: bash
+  dir: "/workspace/src/github.com/GoogleCloudPlatform/k8s-metadata-proxy"
+  env:
+  - "GOPATH=/workspace"
+  args: ["-c", "make build"]
+
+- name: gcr.io/cloud-builders/docker
+  id: docker-build
+  dir: "/workspace/src/github.com/GoogleCloudPlatform/k8s-metadata-proxy"
+  args: ["build", "--pull", "--no-cache", "-t",
+         "${_REGISTRY}/metadata-proxy:${_TAG}", "."]
