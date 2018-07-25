@@ -19,6 +19,15 @@ var (
 		regexp.MustCompile("/computeMetadata/v1beta1/instance/service-accounts/.+/identity"),
 		regexp.MustCompile("/computeMetadata/v1/instance/service-accounts/.+/identity"),
 	}
+	recursiveWhitelistPatterns = []*regexp.Regexp{
+		// ?recursive=true on the instance service account metadata returns
+		// `aliases`, `email`, and `scopes` for the specified service account, none
+		// of which are concealed. This is used by GCE's python oauth2 lib to
+		// fetch access_tokens.
+		regexp.MustCompile("/0.1/meta-data/service-accounts/.+/"),
+		regexp.MustCompile("/computeMetadata/v1beta1/instance/service-accounts/.+/"),
+		regexp.MustCompile("/computeMetadata/v1/instance/service-accounts/.+/"),
+	}
 	discoveryEndpoints = []string{
 		"",
 		"/",
@@ -37,6 +46,17 @@ var (
 	}
 )
 
+// whitelistedRecursiveEndpoint returns whether or not the given path
+// corresponds to an endpoint which has been whitelisted for ?recursive calls.
+func whitelistedRecursiveEndpoint(path string) bool {
+	for _, p := range recursiveWhitelistPatterns {
+		if p.MatchString(path) {
+			return true
+		}
+	}
+	return false
+}
+
 // Filter returns a cleaned path if the request ought to be allowed, or an
 // error if not.
 func Filter(req *http.Request) (string, error) {
@@ -46,10 +66,7 @@ func Filter(req *http.Request) (string, error) {
 	if _, ok := req.Header["X-Forwarded-For"]; ok {
 		return "", errors.New("Calls with X-Forwarded-For header are not allowed by the metadata proxy.")
 	}
-	// Check that the request isn't a recursive one.
-	if req.URL.Query().Get("recursive") != "" {
-		return "", errors.New("?recursive calls are not allowed by the metadata proxy.")
-	}
+
 	// Check that the request doesn't have any opaque parts.
 	if req.URL.Opaque != "" {
 		return "", errors.New("Metadata proxy could not safely parse request.")
@@ -66,6 +83,11 @@ func Filter(req *http.Request) (string, error) {
 	}
 	if strings.HasSuffix(req.URL.Path, "/") && cleanedPath != "/" {
 		cleanedPath += "/"
+	}
+
+	// Check that the request isn't a recursive one, or has been whitelisted.
+	if req.URL.Query().Get("recursive") != "" && !whitelistedRecursiveEndpoint(cleanedPath) {
+		return "", errors.New("This metadata endpoint is concealed for ?recursive calls.")
 	}
 
 	// Conceal kube-env and vm identity endpoints for known API versions.
