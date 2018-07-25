@@ -13,12 +13,13 @@ var (
 	apiNotAllowedErr = errors.New("This metadata API is not allowed by the metadata proxy.")
 	notAllowedErr    = errors.New("This metadata endpoint is not allowed by the metadata proxy.")
 	concealedErr     = errors.New("This metadata endpoint is concealed.")
-	recursiveErr     = errors.New("?recursive calls are not allowed by the metadata proxy.")
+	recursiveErr     = errors.New("This metadata endpoint is concealed for ?recursive calls.")
 	xffErr           = errors.New("Calls with X-Forwarded-For header are not allowed by the metadata proxy.")
 	parseErr         = errors.New("Metadata proxy could not safely parse request.")
 )
 
 func TestFilterURL(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		url           string
 		expectErr     error
@@ -38,6 +39,9 @@ func TestFilterURL(t *testing.T) {
 		// Service account token endpoints.
 		{"/computeMetadata/v1/instance/service-accounts/default/token", nil, "/computeMetadata/v1/instance/service-accounts/default/token"},
 		{"/computeMetadata/v1/instance/service-accounts/12345-compute@developer.gserviceaccount.com/token", nil, "/computeMetadata/v1/instance/service-accounts/12345-compute@developer.gserviceaccount.com/token"},
+		// Service account recursive endpoints (whitelisted).
+		{"/computeMetadata/v1/instance/service-accounts/default/?recursive=True", nil, "/computeMetadata/v1/instance/service-accounts/default/"},
+		{"/computeMetadata/v1/instance/service-accounts/12345-compute@developer.gserviceaccount.com/?recursive=True", nil, "/computeMetadata/v1/instance/service-accounts/12345-compute@developer.gserviceaccount.com/"},
 		// Params that contain 'recursive' as substring.
 		{"/computeMetadata/v1/instance/?nonrecursive=true", nil, "/computeMetadata/v1/instance/"},
 		{"/computeMetadata/v1/instance/?something=other&nonrecursive=true", nil, "/computeMetadata/v1/instance/"},
@@ -54,7 +58,7 @@ func TestFilterURL(t *testing.T) {
 		{"/0.1/meta-data/service-accounts/default/identity", concealedErr, ""},
 		{"/computeMetadata/v1beta1/instance/service-accounts/default/identity", concealedErr, ""},
 		{"/computeMetadata/v1/instance/service-accounts/default/identity", concealedErr, ""},
-		// Recursive.
+		// Recursive (non-whitelisted).
 		{"/computeMetadata/v1/instance/?recursive=true", recursiveErr, ""},
 		{"/computeMetadata/v1/instance/?something=other&recursive=true", recursiveErr, ""},
 		{"/computeMetadata/v1/instance/?recursive=true&something=other", recursiveErr, ""},
@@ -90,6 +94,7 @@ func TestFilterURL(t *testing.T) {
 }
 
 func TestFilterHeader(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		headers   map[string]string
 		expectErr error
