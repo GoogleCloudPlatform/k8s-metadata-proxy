@@ -18,6 +18,10 @@ var (
 	parseErr         = errors.New("Metadata proxy could not safely parse request.")
 )
 
+func unknownQueryParameterErr(key string) error {
+	return fmt.Errorf("Unrecognized query parameter key: %#q.", key)
+}
+
 func TestFilterURL(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
@@ -42,10 +46,17 @@ func TestFilterURL(t *testing.T) {
 		// Service account recursive endpoints (whitelisted).
 		{"/computeMetadata/v1/instance/service-accounts/default/?recursive=True", nil, "/computeMetadata/v1/instance/service-accounts/default/"},
 		{"/computeMetadata/v1/instance/service-accounts/12345-compute@developer.gserviceaccount.com/?recursive=True", nil, "/computeMetadata/v1/instance/service-accounts/12345-compute@developer.gserviceaccount.com/"},
-		// Params that contain 'recursive' as substring.
-		{"/computeMetadata/v1/instance/?nonrecursive=true", nil, "/computeMetadata/v1/instance/"},
-		{"/computeMetadata/v1/instance/?something=other&nonrecursive=true", nil, "/computeMetadata/v1/instance/"},
+		// Other known query parameter keys.
+		{"/computeMetadata/v1/?alt=text", nil, "/computeMetadata/v1/"},
+		{"/computeMetadata/v1/?wait_for_change=true", nil, "/computeMetadata/v1/"},
+		{"/computeMetadata/v1/?wait_for_change=true&timeout_sec=3600", nil, "/computeMetadata/v1/"},
+		{"/computeMetadata/v1/?wait_for_change=true&last_etag=d34db33fd34db33f", nil, "/computeMetadata/v1/"},
+		{"/0.1/meta-data/service-accounts/default/acquire?scopes=cloud-platform+email", nil, "/0.1/meta-data/service-accounts/default/acquire"},
+		{"/0.1/meta-data/auth-token?service_account=test@www.example.com&scope=cloud-platform", nil, "/0.1/meta-data/auth-token"},
 
+		// Query params that contain non-whitelisted keys.
+		{"/computeMetadata/v1/instance/?nonrecursive=true", unknownQueryParameterErr("nonrecursive"), ""},
+		{"/computeMetadata/v1/?something_else=true", unknownQueryParameterErr("something_else"), ""},
 		// Other API versions.
 		{"/0.2/", apiNotAllowedErr, ""},
 		{"/computeMetadata/v2/", apiNotAllowedErr, ""},
@@ -58,10 +69,14 @@ func TestFilterURL(t *testing.T) {
 		{"/0.1/meta-data/service-accounts/default/identity", concealedErr, ""},
 		{"/computeMetadata/v1beta1/instance/service-accounts/default/identity", concealedErr, ""},
 		{"/computeMetadata/v1/instance/service-accounts/default/identity", concealedErr, ""},
+		{"/computeMetadata/v1/instance/service-accounts/default/identity?audience=www.example.com&format=full", concealedErr, ""},
 		// Recursive (non-whitelisted).
 		{"/computeMetadata/v1/instance/?recursive=true", recursiveErr, ""},
-		{"/computeMetadata/v1/instance/?something=other&recursive=true", recursiveErr, ""},
-		{"/computeMetadata/v1/instance/?recursive=true&something=other", recursiveErr, ""},
+		{"/computeMetadata/v1/instance/?%72%65%63%75%72%73%69%76%65=true", recursiveErr, ""}, // url-hex-encoded
+		{"/computeMetadata/v1/instance/?recursive", recursiveErr, ""},
+		{"/computeMetadata/v1/instance/?alt=text&recursive=true", recursiveErr, ""},
+		{"/computeMetadata/v1/instance/?recursive=true&alt=text", recursiveErr, ""},
+		{"/computeMetadata/v1/instance/?alt=text;recursive=true", recursiveErr, ""},
 		// Other.
 		{"/computeMetadata/v1/instance/attributes//kube-env", concealedErr, ""},
 		{"/computeMetadata/v1/instance/attributes/../attributes/kube-env", concealedErr, ""},

@@ -2,6 +2,7 @@ package metadata
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"path"
 	"regexp"
@@ -44,6 +45,24 @@ var (
 		"/computeMetadata/v1beta1/",
 		"/computeMetadata/v1/",
 	}
+	knownQueryParameterKey = map[string]bool{
+		// Common metadata retrieval params.
+		"recursive":       true,
+		"alt":             true,
+		"wait_for_change": true,
+		"timeout_sec":     true,
+		"last_etag":       true,
+
+		// Legacy auth token requests.
+		"service_account": true,
+		"scope":           true,
+		"scopes":          true,
+
+		// Identity Signing, blocked via path.
+		"audience": true,
+		"licenses": true,
+		"format":   true,
+	}
 )
 
 // whitelistedRecursiveEndpoint returns whether or not the given path
@@ -85,8 +104,14 @@ func Filter(req *http.Request) (string, error) {
 		cleanedPath += "/"
 	}
 
+	for key := range req.URL.Query() {
+		if !knownQueryParameterKey[key] {
+			return "", fmt.Errorf("Unrecognized query parameter key: %#q.", key)
+		}
+	}
+
 	// Check that the request isn't a recursive one, or has been whitelisted.
-	if req.URL.Query().Get("recursive") != "" && !whitelistedRecursiveEndpoint(cleanedPath) {
+	if req.URL.Query()["recursive"] != nil && !whitelistedRecursiveEndpoint(cleanedPath) {
 		return "", errors.New("This metadata endpoint is concealed for ?recursive calls.")
 	}
 
