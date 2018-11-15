@@ -83,12 +83,12 @@ func Filter(req *http.Request) (string, error) {
 	// httputil.ReverseProxy.ServeHTTP, check for the header here and
 	// refuse to serve if it's present.
 	if _, ok := req.Header["X-Forwarded-For"]; ok {
-		return "", errors.New("Calls with X-Forwarded-For header are not allowed by the metadata proxy.")
+		return "", errors.New("Calls with X-Forwarded-For header are not allowed by the metadata proxy")
 	}
 
 	// Check that the request doesn't have any opaque parts.
 	if req.URL.Opaque != "" {
-		return "", errors.New("Metadata proxy could not safely parse request.")
+		return "", errors.New("Metadata proxy could not safely parse request")
 	}
 
 	cleanedPath := path.Clean(req.URL.Path)
@@ -106,13 +106,13 @@ func Filter(req *http.Request) (string, error) {
 
 	for key := range req.URL.Query() {
 		if !knownQueryParameterKey[key] {
-			return "", fmt.Errorf("Unrecognized query parameter key: %#q.", key)
+			return "", fmt.Errorf("Unrecognized query parameter key: %#q", key)
 		}
 	}
 
 	// Check that the request isn't a recursive one, or has been whitelisted.
 	if req.URL.Query()["recursive"] != nil && !whitelistedRecursiveEndpoint(cleanedPath) {
-		return "", errors.New("This metadata endpoint is concealed for ?recursive calls.")
+		return "", errors.New("This metadata endpoint is concealed for ?recursive calls")
 	}
 
 	// Conceal kube-env and vm identity endpoints for known API versions.
@@ -120,12 +120,12 @@ func Filter(req *http.Request) (string, error) {
 	// the same paths.
 	for _, e := range concealedEndpoints {
 		if cleanedPath == e {
-			return "", errors.New("This metadata endpoint is concealed.")
+			return "", errors.New("This metadata endpoint is concealed")
 		}
 	}
 	for _, p := range concealedPatterns {
 		if p.MatchString(cleanedPath) {
-			return "", errors.New("This metadata endpoint is concealed.")
+			return "", errors.New("This metadata endpoint is concealed")
 		}
 	}
 
@@ -146,5 +146,5 @@ func Filter(req *http.Request) (string, error) {
 
 	// If none of the above checks match, this is an unknown API, so block
 	// it.
-	return "", errors.New("This metadata API is not allowed by the metadata proxy.")
+	return "", errors.New("This metadata API is not allowed by the metadata proxy")
 }
