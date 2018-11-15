@@ -10,16 +10,16 @@ import (
 )
 
 var (
-	apiNotAllowedErr = errors.New("This metadata API is not allowed by the metadata proxy.")
-	notAllowedErr    = errors.New("This metadata endpoint is not allowed by the metadata proxy.")
-	concealedErr     = errors.New("This metadata endpoint is concealed.")
-	recursiveErr     = errors.New("This metadata endpoint is concealed for ?recursive calls.")
-	xffErr           = errors.New("Calls with X-Forwarded-For header are not allowed by the metadata proxy.")
-	parseErr         = errors.New("Metadata proxy could not safely parse request.")
+	apiNotAllowedErr = errors.New("This metadata API is not allowed by the metadata proxy")
+	notAllowedErr    = errors.New("This metadata endpoint is not allowed by the metadata proxy")
+	concealedErr     = errors.New("This metadata endpoint is concealed")
+	recursiveErr     = errors.New("This metadata endpoint is concealed for ?recursive calls")
+	xffErr           = errors.New("Calls with X-Forwarded-For header are not allowed by the metadata proxy")
+	parseErr         = errors.New("Metadata proxy could not safely parse request")
 )
 
 func unknownQueryParameterErr(key string) error {
-	return fmt.Errorf("Unrecognized query parameter key: %#q.", key)
+	return fmt.Errorf("Unrecognized query parameter key: %#q", key)
 }
 
 func TestFilterURL(t *testing.T) {
