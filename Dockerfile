@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM scratch
+FROM gcr.io/distroless/static:latest
 LABEL maintainer "ihmccreery@google.com"
 
 # Place our wrapper script into the image.
