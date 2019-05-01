@@ -16,7 +16,7 @@ all: build
 
 ENVVAR = GOOS=linux GOARCH=amd64 CGO_ENABLED=0
 REGISTRY = staging-k8s.gcr.io
-TAG = v0.1.11
+TAG = v0.1.12
 
 deps:
 	go get github.com/tools/godep
